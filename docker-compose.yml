@@ -1,0 +1,45 @@
+version: '3.9'
+
+services:
+  postgres:
+    container_name: basic-postgres
+    image: postgres
+    env_file:
+      postgres.env
+    environment:
+      PGDATA: /data/postgres
+    volumes:
+       - postgres:/data/postgres
+       - /home/vlad/socket_dir:/var/run/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+      - vladnetwork
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    env_file:
+      - postgres.env
+    environment:
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+       - pgadmin:/var/lib/pgadmin
+    ports:
+      - 5050:80
+    networks:
+      - postgres
+      - vladnetwork
+    restart: unless-stopped
+
+networks:
+  postgres:
+    driver: bridge
+  vladnetwork:
+    external: true
+
+volumes:
+    postgres:
+    pgadmin:
