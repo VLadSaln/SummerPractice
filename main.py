@@ -9,6 +9,11 @@ def regist(email: str=Query(..., min_length=5, max_length=15, description="Enter
     conn = psycopg2.connect(dbname='postgres', user='postgres', 
     password='postgres1234', host='localhost', port='5432')
     cursor = conn.cursor()
+    cursor.execute(f"select useremail from registration where useremail='{email}';")
+    results = cursor.fetchall()
+    if len(results) > 0:
+        return {"email already used"}  
+
     results=[1]
 
     while len(results) > 0:
@@ -16,7 +21,7 @@ def regist(email: str=Query(..., min_length=5, max_length=15, description="Enter
         cursor.execute(f"select userid from registration where userid={id};")
         results = cursor.fetchall()
         print(results)
-        
+       
     cursor.execute(f"INSERT INTO registration VALUES('{id}','{email}','{password}');")
     conn.commit()
 
