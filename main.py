@@ -15,7 +15,7 @@ def regist(email: str=Query(..., min_length=5, max_length=15, description="Enter
         return {"email already used"} 
 
     id = random.randint(1,1000)
-    
+
     while len(results) > 0:
         id = random.randint(1,1000)
         cursor.execute(f"select userid from registration where userid={id};")
@@ -45,7 +45,9 @@ def autho(email: str=Query(..., min_length=5, max_length=15, description="Enter 
 
     if password != check:
         return {"invalid email or password"}
-   
+    
+    conn.commit()
+    
     return{"succsesful authorization"}
 
 
