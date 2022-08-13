@@ -1,54 +1,56 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+from users import UserCreate, Token
+import auth
+from depend import get_current_user
 import psycopg2
-import random
 
 app = FastAPI()
 
-@app.get('/registration')
-def regist(email: str=Query(..., min_length=5, max_length=15, description="Enter your email"),password: str=Query(..., min_length=5, max_length=15, description="Enter your password")):
+@app.post('/signup')
+def signup(user_details: UserCreate):
     conn = psycopg2.connect(dbname='postgres', user='postgres', 
     password='postgres1234', host='localhost', port='5432')
     cursor = conn.cursor()
-    cursor.execute(f"select useremail from registration where useremail='{email}';")
+    cursor.execute(f"select username from users where username='{user_details.username}';")
     results = cursor.fetchall()
+
     if len(results) > 0:
-        return {"email already used"} 
+        return HTTPException(status_code=400, detail='Username already used')
 
-    id = random.randint(1,1000)
-
-    while len(results) > 0:
-        id = random.randint(1,1000)
-        cursor.execute(f"select userid from registration where userid={id};")
-        results = cursor.fetchall()
-        print(results)
-         
-    cursor.execute(f"INSERT INTO registration VALUES('{id}','{email}','{password}');")
+    hashed_password = auth.hash_password(user_details.password)
+    cursor.execute(f"INSERT INTO users VALUES('{user_details.username}','{user_details.password}','{hashed_password}');")
     conn.commit()
+    return {"successful registration"}
 
-    return{"successful registration"}
-@app.get('/authorization')
-def autho(email: str=Query(..., min_length=5, max_length=15, description="Enter your email"),password: str=Query(..., min_length=5, max_length=15, description="Enter your password")):
+@app.post('/login')
+def login(user_details: OAuth2PasswordRequestForm = Depends()):
     conn = psycopg2.connect(dbname='postgres', user='postgres', 
     password='postgres1234', host='localhost', port='5432')
     cursor = conn.cursor()
-    cursor.execute(f"select useremail from registration where useremail='{email}';")
-    results1 = cursor.fetchall()
-    
-    if len(results1) == 0:
-        return {"email doesnt exist"}
-    
-    cursor.execute(f"select userpassword from registration where useremail='{email}';")
-    results2 = cursor.fetchall() 
-    check = str(results2[0])
-    check = check[2:len(check)-3]
-    check = check[:len(password)]
+    cursor.execute(f"select username from users where username='{user_details.username}';")
+    results = cursor.fetchall()
 
-    if password != check:
-        return {"invalid email or password"}
+    if len(results) == 0:
+        return HTTPException(status_code=400, detail='Invalid username')
     
-    conn.commit()
+    cursor.execute(f"select password from users where username='{user_details.username}';")
+    results = cursor.fetchone()
+    results = results[0].replace(" ","") 
     
-    return{"succsesful authorization"}
+    cursor.execute(f"select hashedpassword from users where username='{user_details.username}';")
+    results1 = cursor.fetchone()
+    results1 = results1[0].replace(" ","")
+    
+    #user = auth.validate_password(results, results1) 
 
-
+    #if not user:
+        #raise HTTPException(status_code=400, detail="Invalid email or password")
     
+    return  auth.create_user_token(user_details.username)
+
+@app.get('/secret')
+def authorized(current_user: Token = Depends(get_current_user)):
+    return current_user
+   
+   
